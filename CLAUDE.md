@@ -13,7 +13,7 @@ Spend the metered-expensive model only on judgment, orchestration, and verificat
 - `.../agent-N/champions/{A,B,C}.rs` — that agent's per-stage local winner.
 - `harness/` — the shared tooling: `prelude.rs` (the fixed `Op` ISA), `golden/` (reference stages + a reference optimizer used to score stages in isolation), `testmain.rs` (the 16-program battery), `prompts/` (one per stage), and the two scripts.
 - `artifact/final_vm.rs` — the assembled three-winner VM. Self-contained, runnable.
-- `methodology/` — the design, the results, the economics.
+- `methodology/` — the design, the results, the economics, and recommendations for the next run (fleet sizing, token caps).
 - `.claude/skills/evolutionary-code-contest/` — the pattern packaged as a reusable skill.
 
 ## Reproduce or re-run

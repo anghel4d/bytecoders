@@ -8,10 +8,13 @@
 #                  and substrate/{A,B,C}.rs (the frozen winners of prior generations + goldens for later slots)
 #   WORK           this agent's output dir; candidates land in $WORK/<SLOT>/, champion at $WORK/champion_<SLOT>.rs
 # Env knobs: CLAUDEX (default ~/.local/bin/claudex), PARALLEL (default 3),
-#   FLEET (newline list of "<idx> <model> <effort>"; default 5x sol/high + 10x luna/xhigh).
+#   SOL / LUNA (counts of gpt-5.6-sol/high and gpt-5.6-luna/xhigh candidates; default 6 and 12).
+#   The supervisor invoking this owns the mix — size it to the stage and to expected attrition;
+#   the original contest ran SOL=5 LUNA=10 (set those to reproduce it exactly).
+#   FLEET (newline list of "<idx> <model> <effort>"; full override, ignores SOL/LUNA).
 set -u
 ROOT="${CONTEST_ROOT:?set CONTEST_ROOT}"; SLOT="$1"
-WORK="${WORK:?set WORK to this agent's output dir}"
+WORK="${WORK:?set WORK to the output dir of this agent}"
 SUB="$ROOT/substrate"
 CLAUDEX="${CLAUDEX:-$HOME/.local/bin/claudex}"
 PARALLEL="${PARALLEL:-3}"
@@ -25,23 +28,10 @@ gen() {  # $1 idx  $2 model  $3 effort
 }
 export -f gen
 
-FLEET="${FLEET:-$(cat <<'EOF'
-01 gpt-5.6-sol high
-02 gpt-5.6-sol high
-03 gpt-5.6-sol high
-04 gpt-5.6-sol high
-05 gpt-5.6-sol high
-06 gpt-5.6-luna xhigh
-07 gpt-5.6-luna xhigh
-08 gpt-5.6-luna xhigh
-09 gpt-5.6-luna xhigh
-10 gpt-5.6-luna xhigh
-11 gpt-5.6-luna xhigh
-12 gpt-5.6-luna xhigh
-13 gpt-5.6-luna xhigh
-14 gpt-5.6-luna xhigh
-15 gpt-5.6-luna xhigh
-EOF
+SOL="${SOL:-6}"; LUNA="${LUNA:-12}"
+FLEET="${FLEET:-$(
+  for i in $(seq 1 "$SOL");  do printf '%02d gpt-5.6-sol high\n'   "$i"; done
+  for i in $(seq 1 "$LUNA"); do printf '%02d gpt-5.6-luna xhigh\n' $((SOL + i)); done
 )}"
 
 echo "[$WORK $SLOT] commissioning $(echo "$FLEET" | grep -c .) claudex candidates ..."
