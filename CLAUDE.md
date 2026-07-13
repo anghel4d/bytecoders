@@ -19,7 +19,7 @@ Spend the metered-expensive model only on judgment, orchestration, and verificat
 ## Reproduce or re-run
 Fitness of any A/B/C trio: `CONTEST_ROOT=harness bash harness/compose_and_test.sh <A.rs> <B.rs> <C.rs>` — emits `FITNESS pass=X/16 ... reduction=N`, or `BUILD_FAIL`/`TIMEOUT`/`CRASH`. The golden trio scores 16/16 reduction=0; the shipped winners score 16/16 reduction=23. Run the artifact: `rustc --edition 2021 -O artifact/final_vm.rs -o /tmp/vm && /tmp/vm`.
 
-A full agent generation: `CONTEST_ROOT=harness WORK=/tmp/agent-1 bash harness/run_stage.sh A` commissions the fleet, tests each candidate against the substrate, ranks, and copies a provisional champion. Requires `claudex` on PATH and `rustc`.
+A full agent generation: `CONTEST_ROOT=harness WORK=/tmp/agent-1 bash harness/run_stage.sh A` commissions the fleet, tests each candidate against the substrate, ranks, and copies a provisional champion. Requires `claudex` on PATH and `rustc`. Seed `harness/substrate/` first — it doesn't exist at rest: copy `orchestrator/substrate/{A,B,C}.rs` to rebuild against the frozen winners, or the goldens (`goldenC.rs` as `C.rs`) to start a fresh contest at stage A. The skill's harness copy ships golden substrate and runs as-is.
 
 ## Conventions
 - The fixed contract is load-bearing: candidates implement exactly one `pub fn` (`assemble`/`run`/`optimize`) against the `Op` enum in `prelude.rs`; they never redefine `Op`. Composition wraps each stage in its own module so imports cannot collide.
