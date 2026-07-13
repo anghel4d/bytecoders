@@ -1,0 +1,15 @@
+01	sol-high	pass=16/16	reduction=0	120L
+02	sol-high	pass=16/16	reduction=0	151L
+03	sol-high	pass=16/16	reduction=0	114L
+04	sol-high	pass=16/16	reduction=0	104L
+05	sol-high	pass=16/16	reduction=0	141L
+06	luna-xhigh	pass=16/16	reduction=0	152L
+07	luna-xhigh	BUILD_FAIL	reduction=NA	186L
+08	luna-xhigh	pass=16/16	reduction=0	188L
+09	luna-xhigh	pass=16/16	reduction=0	185L
+10	luna-xhigh	pass=16/16	reduction=0	172L
+11	luna-xhigh	pass=16/16	reduction=0	195L
+12	luna-xhigh	pass=16/16	reduction=0	198L
+13	luna-xhigh	pass=16/16	reduction=0	177L
+14	luna-xhigh	pass=16/16	reduction=0	129L
+15	luna-xhigh	pass=16/16	reduction=0	129L

@@ -1,0 +1,9 @@
+# Rust build output
+target/
+*.rlib
+*.rmeta
+
+# transient compile/run artifacts from the harness (it uses mktemp outside the tree,
+# but guard against stray local builds)
+/tmp/
+vmcomp.*
