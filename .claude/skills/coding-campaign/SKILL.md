@@ -1,6 +1,7 @@
 ---
-name: coding-campaign-DO-NOT-USE
-description: An experimental hierarchical GAN coder campaign. Run only when user mentions using Sol/Luna, claudex fleets, competing implementations, or architecture contests. The CMDR derives checkpointed operational phases from the ingested mission and advances them through fresh blind Opus supervisors; every code-bearing artifact is produced by claudex Sol/Luna Individual Units; supervisors only commission, judge, select, gate, and report.
+name: coding-campaign
+description: WIP DO NOT USE EVER UNLESS THIS TEXT IS STRIKED OUT BY USER An experimental hierarchical GAN coder campaign. Run only when user mentions using Sol/Luna, claudex fleets, competing implementations, or architecture contests. The CMDR derives checkpointed operational phases from the ingested mission and advances them through fresh blind Opus supervisors; every code-bearing artifact is produced by claudex Sol/Luna Individual Units; supervisors only commission, judge, select, gate, and report.
+disable-model-invocation: true
 ---
 
 # The GAN coder system
@@ -15,7 +16,7 @@ The CMDR first derives the campaign's operational phases from the user's prompt,
 
 - Squad Leaders are Opus only. Never use Fable as an SL. Fable may be used directly outside this skill under ultracode for one bounded implementation task.
 - Individual Units are claudex instances using `gpt-5.6-sol` or `gpt-5.6-luna`. No other model writes campaign code.
-- The standard fleet is exactly 4 Sol/high + 6 Luna/xhigh, ten IUs total. Use it for every normal fleet round. Different ten-unit ratios are forbidden. A smaller fleet requires explicit CMDR authorization and runner opt-in; a larger fleet is forbidden.
+- The runner hard-fires the standard fleet: 4 Sol/high + 6 Luna/xhigh, ten IUs total. Fleet composition is not configurable.
 - Run no more than three Opus SLs concurrently. Queue additional squads and start them as active squads report or finish; quota safety outranks wall-clock spectacle.
 - Squads are blind. An SL receives its lineage and owned scope, never another squad's prompt, candidates, worktree, findings, or intermediate state.
 - Every IU in one squad workgroup receives the exact same frozen prompt, byte for byte. Never specialize prompts by Sol/Luna role, index, candidate path, anticipated approach, or any other per-unit detail. Supply isolated paths and deadline-warning paths through runner-owned environment variables. A later round may use a new prompt, but that prompt is again identical for every IU in that invocation.
@@ -128,7 +129,7 @@ After the last phase derived from the mission, the CMDR owns a separate finaliza
 2. Budget: Calculate the worst case from ten simultaneous IUs, `ROUND_TIMEOUT`, `FITNESS_TIMEOUT`, the fixed five-minute post-Sol deadline, integration, review, gate, and checkpoint-commit time. Split the mission before launch when it cannot reach a green checkpoint commit inside the available window.
 3. Context: The CMDR supplies the lineage, ownership boundary, frozen contracts, acceptance criteria, and only the relevant code/spec excerpts. If more discovery is required, commission a claudex reconnaissance round and consume its compact report.
 4. Fitness: Use a pre-existing trusted harness. If none exists, commission a standard fleet to produce one, then commission a separate standard review round with one identical refutation prompt before the harness may score implementations. The SL never writes harness code.
-5. Generate: Commission one standard fleet for the bounded task assigned by the derived phase contract. Freeze one prompt containing the exact test command, acceptance tally, deadline, and the statement that the IU—not the SL—owns implementation, test execution, repair, and green completion; send those exact bytes to every IU. The prompt refers generically to `CAMPAIGN_CANDIDATE_PATH` and `CAMPAIGN_WARNING_PATH`; the runner sets their different values in each process environment without changing the prompt. A smaller fleet requires explicit CMDR authorization and `ALLOW_SMALLER_FLEET=1`; a larger fleet is forbidden by the runners.
+5. Generate: Commission one standard fleet for the bounded task assigned by the derived phase contract. Freeze one prompt containing the exact test command, acceptance tally, deadline, and the statement that the IU—not the SL—owns implementation, test execution, repair, and green completion; send those exact bytes to every IU. The prompt refers generically to `CAMPAIGN_CANDIDATE_PATH` and `CAMPAIGN_WARNING_PATH`; the runner sets their different values in each process environment without changing the prompt.
 6. Score and cull: Run real fitness immediately as each candidate returns and persist that result before waiting for the rest. There are no per-IU cull clocks. Only the first Sol candidate that independently achieves its full required passing tally may arm the group deadline; a Luna result, a failed Sol, raw generation completion, or unverified self-report cannot arm it. Exactly four minutes after that verified Sol pass, the runner broadcasts to every IU in the squad workgroup and to the SL that unfinished units have one minute left. Exactly five minutes after the verified Sol pass, the runner culls every unfinished IU with no exceptions. `ROUND_TIMEOUT` terminates a group that never produces a passing Sol; `FITNESS_TIMEOUT` remains a hard fitness backstop. Empty output, partial fitness, continuation artifacts, placeholders, `#error`, timeout, crash, contract redefinition, and every non-green test tally are failures and cannot become champion.
 7. Judge: Delegate code-quality and adversarial comparison of the highest-fitness candidates to a standard review fleet using one identical prompt. The SL reads their compact findings and selects a winner; it does not rewrite one.
 8. Integrate: For one complete file, mechanically copy the unchanged winner. For multi-file work, conflicts, synthesis, or adaptation, commission a claudex integration round that emits a patch and its own passing targeted-test tally, then mechanically apply that patch.
@@ -153,7 +154,7 @@ Invoke the runner directly. Do not write a per-step executable script. From Git 
 MSYS_NO_PATHCONV=1 wsl -d Debian -- env \
   PROMPT_FILE=/mnt/c/path/prompts/parser.txt \
   FITNESS_CMD='bash /mnt/c/path/fitness/fit.sh "$1"' \
-  WORK=/mnt/c/path/scratch/contest NAME=parser EXT=c SOL=4 LUNA=6 \
+  WORK=/mnt/c/path/scratch/contest NAME=parser EXT=c \
   ROUND_TIMEOUT=1200 FITNESS_TIMEOUT=180 \
   bash /mnt/c/Users/Pyrus/Code/anoptic-engine/.claude/skills/coding-campaign/reference/run_fleet.sh
 ```

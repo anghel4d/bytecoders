@@ -19,22 +19,21 @@ required (env)
 
 optional (env)                                                   [default]
   NAME / EXT        round label / candidate extension            [round / rs]
-  SOL / LUNA        fixed normal composition; smaller requires authorization [4 / 6]
-  SOL_MODEL/EFFORT  fixed production Sol configuration           [gpt-5.6-sol / high]
-  LUNA_MODEL/EFFORT fixed production Luna configuration          [gpt-5.6-luna / xhigh]
-  FLEET             '<idx> <model> <effort>' rows; first SOL rows are Sol, next LUNA rows
-  ALLOW_SMALLER_FLEET
-                    set to 1 only with explicit CMDR authorization [0]
   ROUND_TIMEOUT     group deadline when no Sol passes, seconds   [1200]
   FITNESS_TIMEOUT   independent fitness deadline, seconds        [180]
   CLAUDEX           backend CLI                                  [PATH or ~/.local/bin/claudex]
+
+deprecated (ignored)
+  SOL LUNA FLEET ALLOW_SMALLER_FLEET SOL_MODEL SOL_EFFORT LUNA_MODEL LUNA_EFFORT
+
+The fleet is always 4 gpt-5.6-sol/high + 6 gpt-5.6-luna/xhigh.
 
 All fleet units launch together. Each IU owns green tests on time. Only the first verified
 Sol pass arms the fixed clock: warn all IUs and the SL at four minutes, cull unfinished IUs
 at five minutes. Luna results never arm or alter the clock.
 '@ }
 
-if ($args[0] -in '-h', '--help') { Show-Usage; exit 0 }
+if ($args[0] -in '-h', '-help', '--help') { Show-Usage; exit 0 }
 
 function Req([string]$Name) {
   $value = [Environment]::GetEnvironmentVariable($Name)
@@ -62,8 +61,8 @@ $PromptFile     = Req 'PROMPT_FILE'
 $FitnessCmd     = Req 'FITNESS_CMD'
 $RoundName      = Opt 'NAME' 'round'
 $Ext            = Opt 'EXT' 'rs'
-$Sol            = Positive-Int 'SOL' (Opt 'SOL' '4')
-$Luna           = Positive-Int 'LUNA' (Opt 'LUNA' '6')
+$Sol            = 4
+$Luna           = 6
 $RoundTimeout   = Positive-Int 'ROUND_TIMEOUT' (Opt 'ROUND_TIMEOUT' '1200')
 $FitnessTimeout = Positive-Int 'FITNESS_TIMEOUT' (Opt 'FITNESS_TIMEOUT' '180')
 $SolPassGrace = 300
@@ -82,47 +81,10 @@ $Claudex = Opt 'CLAUDEX' ($(if ($OnPath) { $OnPath.Source } else { Join-Path $HO
 if (-not (Get-Command $Claudex -ErrorAction Ignore)) { throw "run_fleet.ps1: backend '$Claudex' not found — install claudex or set `$env:CLAUDEX" }
 if (-not (Test-Path -LiteralPath $PromptFile)) { throw "run_fleet.ps1: cannot read PROMPT_FILE '$PromptFile'" }
 
-$SolModel = Opt 'SOL_MODEL' 'gpt-5.6-sol'; $SolEffort = Opt 'SOL_EFFORT' 'high'
-$LunaModel = Opt 'LUNA_MODEL' 'gpt-5.6-luna'; $LunaEffort = Opt 'LUNA_EFFORT' 'xhigh'
-if ((Opt 'CAMPAIGN_TEST_MODE' '0') -ne '1') {
-  if ($SolModel -ne 'gpt-5.6-sol' -or $SolEffort -ne 'high') { throw 'run_fleet.ps1: production Sol configuration is fixed at gpt-5.6-sol/high' }
-  if ($LunaModel -ne 'gpt-5.6-luna' -or $LunaEffort -ne 'xhigh') { throw 'run_fleet.ps1: production Luna configuration is fixed at gpt-5.6-luna/xhigh' }
-}
-$FleetSpec = [Environment]::GetEnvironmentVariable('FLEET')
-if ([string]::IsNullOrWhiteSpace($FleetSpec)) {
-  $rows = @()
-  $rows += 1..$Sol | ForEach-Object { '{0:d2} {1} {2}' -f $_, $SolModel, $SolEffort }
-  $rows += 1..$Luna | ForEach-Object { '{0:d2} {1} {2}' -f ($Sol + $_), $LunaModel, $LunaEffort }
-  $FleetSpec = $rows -join "`n"
-}
-
-$seen = @{}
-$fleetOrdinal = 0
-$Fleet = @($FleetSpec -split "\r?\n" | Where-Object { $_.Trim() } | ForEach-Object {
-  $parts = @(-split $_)
-  if ($parts.Count -ne 3) { throw "run_fleet.ps1: invalid FLEET row '$_'" }
-  if ($parts[0] -notmatch '^[A-Za-z0-9_-]+$') { throw "run_fleet.ps1: unsafe fleet index '$($parts[0])'" }
-  if ($seen.ContainsKey($parts[0])) { throw "run_fleet.ps1: duplicate fleet index '$($parts[0])'" }
-  $seen[$parts[0]] = $true
-  $role = if ($fleetOrdinal -lt $Sol) { 'Sol' } else { 'Luna' }
-  if ((Opt 'CAMPAIGN_TEST_MODE' '0') -ne '1') {
-    $expectedModel = if ($role -eq 'Sol') { $SolModel } else { $LunaModel }
-    $expectedEffort = if ($role -eq 'Sol') { $SolEffort } else { $LunaEffort }
-    if ($parts[1] -ne $expectedModel -or $parts[2] -ne $expectedEffort) { throw "run_fleet.ps1: fleet row '$_' violates the configured $role model/effort" }
-  }
-  $fleetOrdinal++
-  [pscustomobject]@{ Idx = $parts[0]; Model = $parts[1]; Effort = $parts[2]; Role = $role }
-})
-if (-not $Fleet) { throw 'run_fleet.ps1: fleet is empty' }
-if ($Fleet.Count -gt 10) { throw "run_fleet.ps1: fleet has $($Fleet.Count) units; hard maximum is 10" }
-$allowSmaller = Opt 'ALLOW_SMALLER_FLEET' '0'
-if ($allowSmaller -notin '0', '1') { throw 'run_fleet.ps1: ALLOW_SMALLER_FLEET must be 0 or 1' }
-if ($allowSmaller -eq '1') {
-  if ($Fleet.Count -ge 10) { throw 'run_fleet.ps1: ALLOW_SMALLER_FLEET authorizes only a fleet smaller than 10; normal ten-unit fleets must be exactly 4 Sol + 6 Luna' }
-} elseif ($Fleet.Count -ne 10 -or $Sol -ne 4 -or $Luna -ne 6) {
-  throw 'run_fleet.ps1: normal fleets must be exactly 4 Sol + 6 Luna; a smaller fleet requires CMDR-authorized ALLOW_SMALLER_FLEET=1'
-}
-if (($Sol + $Luna) -ne $Fleet.Count) { throw "run_fleet.ps1: SOL + LUNA must equal fleet size so Sol trigger eligibility is unambiguous" }
+$Fleet = @(
+  1..4 | ForEach-Object { [pscustomobject]@{ Idx = '{0:d2}' -f $_; Model = 'gpt-5.6-sol'; Effort = 'high'; Role = 'Sol' } }
+  1..6 | ForEach-Object { [pscustomobject]@{ Idx = '{0:d2}' -f (4 + $_); Model = 'gpt-5.6-luna'; Effort = 'xhigh'; Role = 'Luna' } }
+)
 
 $RoundDir = [System.IO.Path]::GetFullPath((Join-Path $Work $RoundName))
 New-Item -ItemType Directory -Force -Path $RoundDir | Out-Null

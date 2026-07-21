@@ -16,8 +16,8 @@ usage:  CONTEST_ROOT=/harness WORK=/contest/agent-N  bash run_stage.sh <A|B|C>
                 them, champion at $WORK/champion_<SLOT>.rs
   RUN_FLEET     path to run_fleet.sh [auto-found beside this script, in the skill's
                 reference/, or in .claude/tools/]
-  fleet knobs   SOL/LUNA [4/6], ten total. Plus FLEET, CLAUDEX, deadlines, and
-                *_MODEL/*_EFFORT: run_fleet.sh -h
+  fleet         hard-fired by run_fleet.sh: 4 Sol/high + 6 Luna/xhigh
+  runner knobs  CLAUDEX and deadlines: run_fleet.sh -h
 EOF
 }
 case "${1:-}" in

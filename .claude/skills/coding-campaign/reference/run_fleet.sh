@@ -16,15 +16,14 @@ required (env)
 
 optional (env)                                                   [default]
   NAME / EXT        round label / candidate extension            [round / rs]
-  SOL / LUNA        fixed normal composition; smaller requires authorization [4 / 6]
-  SOL_MODEL/EFFORT  fixed production Sol configuration           [gpt-5.6-sol / high]
-  LUNA_MODEL/EFFORT fixed production Luna configuration          [gpt-5.6-luna / xhigh]
-  FLEET             '<idx> <model> <effort>' rows; first SOL rows are Sol, next LUNA rows
-  ALLOW_SMALLER_FLEET
-                    set to 1 only with explicit CMDR authorization [0]
   ROUND_TIMEOUT     group deadline when no Sol passes, seconds   [1200]
   FITNESS_TIMEOUT   independent fitness deadline, seconds        [180]
   CLAUDEX           backend CLI                                  [PATH or ~/.local/bin/claudex]
+
+deprecated (ignored)
+  SOL LUNA FLEET ALLOW_SMALLER_FLEET SOL_MODEL SOL_EFFORT LUNA_MODEL LUNA_EFFORT
+
+The fleet is always 4 gpt-5.6-sol/high + 6 gpt-5.6-luna/xhigh.
 
 All fleet units launch together. Each IU owns green tests on time. Only the first verified
 Sol pass arms the fixed clock: warn all IUs and the SL at four minutes, cull unfinished IUs
@@ -32,7 +31,7 @@ at five minutes. Luna results never arm or alter the clock.
 EOF
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+case "${1:-}" in -h|-help|--help) usage; exit 0;; esac
 
 fail() { echo "run_fleet.sh: $*" >&2; exit 2; }
 positive_int() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
@@ -47,7 +46,7 @@ CLAUDEX="${CLAUDEX:-$(command -v claudex || echo "$HOME/.local/bin/claudex")}"
 [ -x "$CLAUDEX" ] || fail "backend '$CLAUDEX' not found — install claudex or set CLAUDEX"
 
 NAME="${NAME:-round}" EXT="${EXT:-rs}"
-SOL="${SOL:-4}" LUNA="${LUNA:-6}"
+readonly SOL=4 LUNA=6
 ROUND_TIMEOUT="${ROUND_TIMEOUT:-1200}" FITNESS_TIMEOUT="${FITNESS_TIMEOUT:-180}"
 SOL_PASS_GRACE=300 SOL_PASS_WARNING=240
 if [ "${CAMPAIGN_TEST_MODE:-0}" = 1 ]; then
@@ -58,49 +57,21 @@ if [ "${CAMPAIGN_TEST_MODE:-0}" = 1 ]; then
 elif [ -n "${TEST_SOL_PASS_GRACE:-}" ] || [ -n "${TEST_SOL_PASS_WARNING:-}" ]; then
   fail "the five-minute Sol-pass clock is fixed; timing overrides are test-only"
 fi
-for n in SOL LUNA ROUND_TIMEOUT FITNESS_TIMEOUT; do positive_int "${!n}" || fail "$n must be a positive integer"; done
+for n in ROUND_TIMEOUT FITNESS_TIMEOUT; do positive_int "${!n}" || fail "$n must be a positive integer"; done
 
-SOL_MODEL="${SOL_MODEL:-gpt-5.6-sol}"       SOL_EFFORT="${SOL_EFFORT:-high}"
-LUNA_MODEL="${LUNA_MODEL:-gpt-5.6-luna}"  LUNA_EFFORT="${LUNA_EFFORT:-xhigh}"
-if [ "${CAMPAIGN_TEST_MODE:-0}" != 1 ]; then
-  [ "$SOL_MODEL" = gpt-5.6-sol ] && [ "$SOL_EFFORT" = high ] || fail "production Sol configuration is fixed at gpt-5.6-sol/high"
-  [ "$LUNA_MODEL" = gpt-5.6-luna ] && [ "$LUNA_EFFORT" = xhigh ] || fail "production Luna configuration is fixed at gpt-5.6-luna/xhigh"
-fi
-FLEET="${FLEET:-$(
-  for i in $(seq 1 "$SOL");  do printf '%02d %s %s\n' "$i" "$SOL_MODEL" "$SOL_EFFORT"; done
-  for i in $(seq 1 "$LUNA"); do printf '%02d %s %s\n' $((SOL + i)) "$LUNA_MODEL" "$LUNA_EFFORT"; done
-)}"
-
-mapfile -t FLEET_ROWS < <(grep . <<<"$FLEET")
-FLEET_COUNT=${#FLEET_ROWS[@]}
-((FLEET_COUNT > 0)) || fail "fleet is empty"
-((FLEET_COUNT <= 10)) || fail "fleet has $FLEET_COUNT units; hard maximum is 10"
-ALLOW_SMALLER_FLEET="${ALLOW_SMALLER_FLEET:-0}"
-[[ "$ALLOW_SMALLER_FLEET" =~ ^[01]$ ]] || fail "ALLOW_SMALLER_FLEET must be 0 or 1"
-if [ "$ALLOW_SMALLER_FLEET" = 1 ]; then
-  ((FLEET_COUNT < 10)) || fail "ALLOW_SMALLER_FLEET authorizes only a fleet smaller than 10; normal ten-unit fleets must be exactly 4 Sol + 6 Luna"
-else
-  ((FLEET_COUNT == 10 && SOL == 4 && LUNA == 6)) || fail "normal fleets must be exactly 4 Sol + 6 Luna; a smaller fleet requires CMDR-authorized ALLOW_SMALLER_FLEET=1"
-fi
-((SOL + LUNA == FLEET_COUNT)) || fail "SOL + LUNA must equal fleet size so Sol trigger eligibility is unambiguous"
-
-declare -A SEEN_IDX
-ordinal=0
-for row in "${FLEET_ROWS[@]}"; do
-  read -r idx model effort extra <<<"$row"
-  [ -n "${idx:-}" ] && [ -n "${model:-}" ] && [ -n "${effort:-}" ] && [ -z "${extra:-}" ] || fail "invalid FLEET row '$row'"
-  [[ "$idx" =~ ^[A-Za-z0-9_-]+$ ]] || fail "unsafe fleet index '$idx'"
-  [ -z "${SEEN_IDX[$idx]:-}" ] || fail "duplicate fleet index '$idx'"
-  SEEN_IDX[$idx]=1
-  if [ "${CAMPAIGN_TEST_MODE:-0}" != 1 ]; then
-    if ((ordinal < SOL)); then
-      [ "$model" = "$SOL_MODEL" ] && [ "$effort" = "$SOL_EFFORT" ] || fail "fleet row '$row' violates the configured Sol model/effort"
-    else
-      [ "$model" = "$LUNA_MODEL" ] && [ "$effort" = "$LUNA_EFFORT" ] || fail "fleet row '$row' violates the configured Luna model/effort"
-    fi
-  fi
-  ((ordinal += 1))
-done
+mapfile -t FLEET_ROWS <<'EOF'
+01 gpt-5.6-sol high
+02 gpt-5.6-sol high
+03 gpt-5.6-sol high
+04 gpt-5.6-sol high
+05 gpt-5.6-luna xhigh
+06 gpt-5.6-luna xhigh
+07 gpt-5.6-luna xhigh
+08 gpt-5.6-luna xhigh
+09 gpt-5.6-luna xhigh
+10 gpt-5.6-luna xhigh
+EOF
+readonly FLEET_COUNT=10
 
 ROUND_DIR="$WORK/$NAME"
 mkdir -p "$ROUND_DIR"
